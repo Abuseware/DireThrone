@@ -6,13 +6,15 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 
-class Config {
+class JsonConfig implements ConfigStorageInterface {
 
-    private static ConfigData data;
-    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static JsonConfig config = null;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private ConfigData data;
 
-    static {
+    private JsonConfig() {
         try {
             data = objectMapper.readValue(new File("config.json"), ConfigData.class);
         } catch (IOException e) {
@@ -23,95 +25,100 @@ class Config {
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
-    static double getBasicIncome() {
+    public synchronized static JsonConfig getInstance() {
+        if (config == null) config = new JsonConfig();
+        return config;
+    }
+
+    public BigDecimal getBasicIncome() {
         return data.basicIncome;
     }
 
-    static void setBasicIncome(double basicIncome) {
+    public void setBasicIncome(BigDecimal basicIncome) {
         data.basicIncome = basicIncome;
     }
 
-    static double getRetirementTax() {
+    public BigDecimal getRetirementTax() {
         return data.retirementTax;
     }
 
-    static void setRetirementTax(double retirementTax) {
+    public void setRetirementTax(BigDecimal retirementTax) {
         data.retirementTax = retirementTax;
     }
 
-    static double getAnnuityTax() {
+    public BigDecimal getAnnuityTax() {
         return data.annuityTax;
     }
 
-    static void setAnnuityTax(double annuityTax) {
+    public void setAnnuityTax(BigDecimal annuityTax) {
         data.annuityTax = annuityTax;
     }
 
-    static double getSicknessTax() {
+    public BigDecimal getSicknessTax() {
         return data.sicknessTax;
     }
 
-    static void setSicknessTax(double sicknessTax) {
+    public void setSicknessTax(BigDecimal sicknessTax) {
         data.sicknessTax = sicknessTax;
     }
 
-    static double getHealthTax() {
+    public BigDecimal getHealthTax() {
         return data.healthTax;
     }
 
-    static void setHealthTax(double healthTax) {
+    public void setHealthTax(BigDecimal healthTax) {
         data.healthTax = healthTax;
     }
 
-    static double getHealthRefund() {
+    public BigDecimal getHealthRefund() {
         return data.healthRefund;
     }
 
-    static void setHealthRefund(double healthRefund) {
+    public void setHealthRefund(BigDecimal healthRefund) {
         data.healthRefund = healthRefund;
     }
 
-    static double getObtainingCost() {
+    public BigDecimal getObtainingCost() {
         return data.obtainingCost;
     }
 
-    static void setObtainingCost(double obtainingCost) {
+    public void setObtainingCost(BigDecimal obtainingCost) {
         data.obtainingCost = obtainingCost;
     }
 
-    static double getTaxRelief() {
+    public BigDecimal getTaxRelief() {
         return data.taxRelief;
     }
 
-    static void setTaxRelief(double taxRelief) {
+    public void setTaxRelief(BigDecimal taxRelief) {
         data.taxRelief = taxRelief;
     }
 
-    static double getTax() {
+    public BigDecimal getTax() {
         return data.tax;
     }
 
-    static void setTax(double tax) {
+    public void setTax(BigDecimal tax) {
         data.tax = tax;
     }
 
-    static double getRepairBounty() {
+    public BigDecimal getRepairBounty() {
         return data.RepairBounty;
     }
 
-    static void setRepairBounty(double repairBounty) {
+    public void setRepairBounty(BigDecimal repairBounty) {
         data.RepairBounty = repairBounty;
     }
 
-    static double getPPPBounty() {
+    public BigDecimal getPPPBounty() {
         return data.PPPBounty;
     }
 
-    static void setPPPBounty(double PPPBounty) {
+    public void setPPPBounty(BigDecimal PPPBounty) {
         data.PPPBounty = PPPBounty;
     }
 
-    static boolean save() {
+    public boolean save() {
         try {
             objectMapper.writeValue(new File("config.json"), data);
         } catch (IOException e) {

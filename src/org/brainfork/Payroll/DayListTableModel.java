@@ -3,7 +3,7 @@ package org.brainfork.Payroll;
 import javax.swing.table.DefaultTableModel;
 
 public class DayListTableModel extends DefaultTableModel {
-    private int[] lockedColumns = {0};
+    private final int[] lockedColumns = {0};
 
     @Override
     public boolean isCellEditable(int row, int column){

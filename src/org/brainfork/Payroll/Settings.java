@@ -4,6 +4,8 @@ import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class Settings extends JDialog {
     private JPanel contentPane;
@@ -19,6 +21,8 @@ public class Settings extends JDialog {
     private JSpinner Tax;
     private JSpinner RepairBounty;
     private JSpinner PppBounty;
+
+    private static final ConfigStorageInterface config = JsonConfig.getInstance();
 
     Settings() {
         setContentPane(contentPane);
@@ -36,16 +40,16 @@ public class Settings extends JDialog {
         RepairBounty.setModel(getDoubleSpinner());
         PppBounty.setModel(getDoubleSpinner());
 
-        RetirementTax.setValue(Config.getRetirementTax() * 100);
-        AnnuityTax.setValue(Config.getAnnuityTax() * 100);
-        SicknessTax.setValue(Config.getSicknessTax() * 100);
-        MedicalTax.setValue(Config.getHealthTax() * 100);
-        MedicalTaxRefund.setValue(Config.getHealthRefund() * 100);
-        ObtainingCost.setValue(Config.getObtainingCost());
-        TaxRelief.setValue(Config.getTaxRelief());
-        Tax.setValue(Config.getTax() * 100);
-        RepairBounty.setValue(Config.getRepairBounty());
-        PppBounty.setValue(Config.getPPPBounty());
+        RetirementTax.setValue(config.getRetirementTax().multiply(BigDecimal.valueOf(100)));
+        AnnuityTax.setValue(config.getAnnuityTax().multiply(BigDecimal.valueOf(100)));
+        SicknessTax.setValue(config.getSicknessTax().multiply(BigDecimal.valueOf(100)));
+        MedicalTax.setValue(config.getHealthTax().multiply(BigDecimal.valueOf(100)));
+        MedicalTaxRefund.setValue(config.getHealthRefund().multiply(BigDecimal.valueOf(100)));
+        ObtainingCost.setValue(config.getObtainingCost());
+        TaxRelief.setValue(config.getTaxRelief());
+        Tax.setValue(config.getTax().multiply(BigDecimal.valueOf(100)));
+        RepairBounty.setValue(config.getRepairBounty());
+        PppBounty.setValue(config.getPPPBounty());
 
 
         buttonOK.addActionListener(e -> onOK());
@@ -73,17 +77,17 @@ public class Settings extends JDialog {
     }
 
     private void onOK() {
-        Config.setRetirementTax((double) RetirementTax.getValue() / 100.0);
-        Config.setAnnuityTax((double) AnnuityTax.getValue() / 100.0);
-        Config.setSicknessTax((double) SicknessTax.getValue() / 100.0);
-        Config.setHealthTax((double) MedicalTax.getValue() / 100.0);
-        Config.setHealthRefund((double) MedicalTaxRefund.getValue() / 100.0);
-        Config.setObtainingCost((double) ObtainingCost.getValue());
-        Config.setTaxRelief((double) TaxRelief.getValue());
-        Config.setTax((double) Tax.getValue() / 100.0);
-        Config.setRepairBounty((double) RepairBounty.getValue());
-        Config.setPPPBounty((double) PppBounty.getValue());
-        Config.save();
+        config.setRetirementTax(new BigDecimal(RetirementTax.getValue().toString()).divide(BigDecimal.valueOf(100), RoundingMode.DOWN));
+        config.setAnnuityTax(new BigDecimal(AnnuityTax.getValue().toString()).divide(BigDecimal.valueOf(100), RoundingMode.DOWN));
+        config.setSicknessTax(new BigDecimal(SicknessTax.getValue().toString()).divide(BigDecimal.valueOf(100), RoundingMode.DOWN));
+        config.setHealthTax(new BigDecimal(MedicalTax.getValue().toString()).divide(BigDecimal.valueOf(100), RoundingMode.DOWN));
+        config.setHealthRefund(new BigDecimal(MedicalTaxRefund.getValue().toString()).divide(BigDecimal.valueOf(100), RoundingMode.DOWN));
+        config.setObtainingCost(new BigDecimal(ObtainingCost.getValue().toString()));
+        config.setTaxRelief(new BigDecimal(TaxRelief.getValue().toString()));
+        config.setTax(new BigDecimal(Tax.getValue().toString()).divide(BigDecimal.valueOf(100.0), RoundingMode.DOWN));
+        config.setRepairBounty(new BigDecimal(RepairBounty.getValue().toString()));
+        config.setPPPBounty(new BigDecimal(PppBounty.getValue().toString()));
+        config.save();
         dispose();
     }
 

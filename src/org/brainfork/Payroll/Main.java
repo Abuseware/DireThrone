@@ -5,6 +5,7 @@ import javax.swing.table.TableColumn;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.util.Calendar;
 import java.util.Locale;
@@ -29,15 +30,15 @@ public class Main {
     private JComboBox<Integer> YearSelector;
     private JTextField Deduction;
     private JTextField Overtime;
-    private NumberFormat nf = NumberFormat.getNumberInstance();
-
-    private String[] TableHeader = new String[]{"#", "Naprawy", "PPP", "Zwr. naprawy", "Zwr. PPP", "L4", "Urlop", "Nadgodz. 50%", "Nadgodz. 100%"};
+    private static final ConfigStorageInterface config = JsonConfig.getInstance();
+    private final NumberFormat nf = NumberFormat.getNumberInstance();
+    private final String[] TableHeader = new String[]{"#", "Naprawy", "PPP", "Zwr. naprawy", "Zwr. PPP", "L4", "Urlop", "Nadgodz. 50%", "Nadgodz. 100%"};
 
     public Main() {
 
         Calendar calendar = Calendar.getInstance();
         BasicIncome.setModel(new SpinnerNumberModel(0.0, 0.0, null, 1.0));
-        BasicIncome.setValue(Config.getBasicIncome());
+        BasicIncome.setValue(config.getBasicIncome());
 
         int currentYear = calendar.get(Calendar.YEAR);
         for (int i = currentYear - 3; i <= currentYear; i++) YearSelector.addItem(i);
@@ -63,7 +64,7 @@ public class Main {
             updatePayout();
         });
         BasicIncome.addChangeListener(e -> {
-            Config.setBasicIncome((double) BasicIncome.getValue());
+            config.setBasicIncome(new BigDecimal(BasicIncome.getValue().toString()));
             updatePayout();
         });
     }
@@ -80,13 +81,12 @@ public class Main {
         JFrame frame = new JFrame("Kalkulator wypłaty");
         frame.setContentPane(main.MainWindow);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setLocationRelativeTo(null);
+        frame.setLocationByPlatform(true);
         frame.setIconImage(new ImageIcon(Main.class.getResource("/icon.png")).getImage());
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                //Storage.close();
-                Config.save();
+                config.save();
                 super.windowClosing(e);
             }
         });
@@ -146,7 +146,7 @@ public class Main {
                 new JLabel(
                         "<html>"
                                 + "<h1>Payout calculator</h1>"
-                                + "<p style=\"text-align: center;\"><b>© 2019 Artur \"Licho\" Kaleta</b></center><p/>"
+                                + "<p style=\"text-align: center;\"><b>© 2019-2020 Artur \"Licho\" Kaleta</b></center><p/>"
                                 + "<p style=\"text-align: center;\"><a href=\"https://brainfork.org/\">https://brainfork.org</a></p>"
                                 + "</html>"
                 ),
@@ -156,14 +156,15 @@ public class Main {
     }
 
     private void updatePayout() {
+        MainController controller = new MainController();
         int repairs = 0;
         int ppps = 0;
         int returnedRepairs = 0;
         int returnedPpps = 0;
         int daysSick = 0;
         int daysLeave = 0;
-        double overtime50 = 0.0;
-        double overtime100 = 0.0;
+        BigDecimal overtime50 = BigDecimal.ZERO;
+        BigDecimal overtime100 = BigDecimal.ZERO;
 
         for (int i = 0; i < DayList.getRowCount(); i++) {
             repairs += (int) DayList.getValueAt(i, 1);
@@ -172,39 +173,40 @@ public class Main {
             returnedPpps += (int) DayList.getValueAt(i, 4);
             if ((boolean) DayList.getValueAt(i, 5)) daysSick++;
             if ((boolean) DayList.getValueAt(i, 6)) daysLeave++;
-            overtime50 += (double) DayList.getValueAt(i, 7);
-            overtime100 += (double) DayList.getValueAt(i, 8);
+            overtime50 = overtime50.add(new BigDecimal(DayList.getValueAt(i, 7).toString()));
+            overtime100 = overtime100.add(new BigDecimal(DayList.getValueAt(i, 8).toString()));
         }
 
-        double bounty = MainController.calculateBounty(repairs, ppps, returnedRepairs, returnedPpps);
-        double overtime = MainController.calculateOvertimeBonus(overtime50, overtime100);
-        double deduction = MainController.calculateDeduction(bounty, daysSick, daysLeave);
+        BigDecimal bounty = controller.calculateBounty(repairs, ppps, returnedRepairs, returnedPpps);
+        BigDecimal overtime = controller.calculateOvertimeBonus(overtime50, overtime100);
+        BigDecimal deduction = controller.calculateDeduction(bounty, daysSick, daysLeave);
         Bounty.setText(nf.format(bounty));
         Overtime.setText(nf.format(overtime));
         Deduction.setText(nf.format(deduction));
 
-        double[] payout = MainController.calculatePayout(overtime, bounty, deduction);
+        BigDecimal[] payout = controller.calculatePayout(overtime, bounty, deduction);
 
         RetirementTax.setText(nf.format(payout[MainController.RETIREMENT_TAX]));
         AnnuityTax.setText(nf.format(payout[MainController.ANNUITY_TAX]));
         SicknessTax.setText(nf.format(payout[MainController.SICKNESS_TAX]));
         MedicalTaxRefund.setText(nf.format(payout[MainController.MEDICAL_REFUND]));
         MedicalTax.setText(nf.format(payout[MainController.MEDICAL_TAX]));
-        ObtainingCost.setText(nf.format(Config.getObtainingCost()));
-        TaxRelief.setText(nf.format(Config.getTaxRelief()));
+        ObtainingCost.setText(nf.format(config.getObtainingCost()));
+        TaxRelief.setText(nf.format(config.getTaxRelief()));
         Tax.setText(nf.format(payout[MainController.TAX]));
         Salary.setText(nf.format(payout[MainController.SALARY]));
 
     }
 
     private void updateDayList(int year, int month) {
+        DataStorageInterface storage = new JsonStorage();
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.YEAR, year);
         calendar.set(Calendar.MONTH, month);
         DayListTableModel model = new DayListTableModel();
         for(String name : TableHeader) model.addColumn(name);
 
-        Map<Integer, StorageData> results = Storage.getMonth(year, month + 1);
+        Map<Integer, StorageData> results = storage.getMonth(year, month + 1);
 
         for (int i = 1; i < calendar.getActualMaximum(Calendar.DAY_OF_MONTH) + 1; i++) {
             Vector<Object> row = new Vector<>();
@@ -216,26 +218,27 @@ public class Main {
             row.add(data != null ? data.pppReturned : 0);
             row.add(data != null && data.sickness);
             row.add(data != null && data.leave);
-            row.add(data != null ? data.overtime50 : 0.0);
-            row.add(data != null ? data.overtime100 : 0.0);
+            row.add(data != null ? data.overtime50 : BigDecimal.ZERO);
+            row.add(data != null ? data.overtime100 : BigDecimal.ZERO);
             model.addRow(row);
         }
         model.addTableModelListener(e -> {
             updatePayout();
-            Vector row = (Vector)model.getDataVector().elementAt(e.getFirstRow());
+            @SuppressWarnings("unchecked")
+            Vector<Object> row = (Vector<Object>) model.getDataVector().elementAt(e.getFirstRow());
             StorageData data = new StorageData();
-            data.repairs = (int)row.elementAt(1);
-            data.ppp = (int)row.elementAt(2);
-            data.repairsReturned = (int)row.elementAt(3);
-            data.pppReturned = (int)row.elementAt(4);
-            data.sickness = (boolean)row.elementAt(5);
-            data.leave = (boolean)row.elementAt(6);
-            data.overtime50 = (double)row.elementAt(7);
-            data.overtime100 = (double)row.elementAt(8);
-            Storage.setDay(
+            data.repairs = (int) row.elementAt(1);
+            data.ppp = (int) row.elementAt(2);
+            data.repairsReturned = (int) row.elementAt(3);
+            data.pppReturned = (int) row.elementAt(4);
+            data.sickness = (boolean) row.elementAt(5);
+            data.leave = (boolean) row.elementAt(6);
+            data.overtime50 = new BigDecimal(row.elementAt(7).toString());
+            data.overtime100 = new BigDecimal(row.elementAt(8).toString());
+            storage.setDay(
                     (int) YearSelector.getSelectedItem(),
                     MonthSelector.getSelectedIndex() + 1,
-                    Integer.parseInt((String)row.elementAt(0)),
+                    Integer.parseInt((String) row.elementAt(0)),
                     data
             );
         });

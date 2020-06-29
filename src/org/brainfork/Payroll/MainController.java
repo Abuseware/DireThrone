@@ -1,5 +1,8 @@
 package org.brainfork.Payroll;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 class MainController {
 
     static final short RETIREMENT_TAX = 0;
@@ -10,45 +13,54 @@ class MainController {
     static final short TAX = 5;
     static final short SALARY = 6;
 
-    static double calculateBounty(int repairs, int ppps, int returnedRepairs, int returnedPpps) {
-        return repairs * Config.getRepairBounty()
-                + ppps * Config.getPPPBounty()
-                - returnedRepairs * Config.getRepairBounty()
-                - returnedPpps * Config.getPPPBounty();
+    private final ConfigStorageInterface config = JsonConfig.getInstance();
+
+    BigDecimal calculateBounty(int repairs, int ppps, int returnedRepairs, int returnedPpps) {
+        BigDecimal ret;
+        ret = config.getRepairBounty().multiply(BigDecimal.valueOf(repairs));
+        ret = ret.add(config.getPPPBounty().multiply(BigDecimal.valueOf(ppps)));
+        ret = ret.add(config.getRepairBounty().multiply(BigDecimal.valueOf(returnedRepairs)));
+        ret = ret.add(config.getPPPBounty().multiply(BigDecimal.valueOf(returnedPpps)));
+        return ret;
     }
 
-    static double calculateOvertimeBonus(double overtime50, double overtime100) {
-        return Math.round(
-                (
-                        (Config.getBasicIncome() / (21 * 8)) * overtime50 / 2
-                                + (Config.getBasicIncome() / (21 * 8)) * overtime100
-                ) * 100.0
-        ) / 100.0;
+    BigDecimal calculateOvertimeBonus(BigDecimal overtime50, BigDecimal overtime100) {
+        BigDecimal ov50 = config.getBasicIncome().divide(BigDecimal.valueOf(21 * 8), RoundingMode.DOWN);
+        BigDecimal ov100 = ov50.multiply(overtime100);
+        ov50 = ov50.multiply(overtime50.divide(BigDecimal.valueOf(2), RoundingMode.DOWN));
+        return (ov50.add(ov100));
     }
 
-    static double calculateDeduction(double bounty, int daysSick, int daysLeave) {
-        return -(daysSick * (Math.round(Config.getBasicIncome() / 21 * 100.0) / 100.0 * 0.2))
-                + (daysLeave * (Math.round(bounty / 21 * 100.0) / 100.0));
+    BigDecimal calculateDeduction(BigDecimal bounty, int daysSick, int daysLeave) {
+        /*return -(daysSick * (Math.round(config.getBasicIncome() / 21 * 100.0) / 100.0 * 0.2))
+                + (daysLeave * (Math.round(bounty / 21 * 100.0) / 100.0));*/
+        BigDecimal sick = BigDecimal.valueOf(daysSick);
+        sick = sick.multiply(config.getBasicIncome().divide(BigDecimal.valueOf(21), RoundingMode.DOWN));
+        sick = sick.multiply(new BigDecimal("0.2"));
+        sick = sick.negate();
+        BigDecimal leave = BigDecimal.valueOf(daysLeave);
+        leave = leave.multiply(bounty.divide(BigDecimal.valueOf(21), RoundingMode.DOWN));
+        return sick.add(leave);
     }
 
-    static double[] calculatePayout(double overtime, double bounty, double deduction) {
-        double[] payments = new double[7];
+    BigDecimal[] calculatePayout(BigDecimal overtime, BigDecimal bounty, BigDecimal deduction) {
+        BigDecimal[] payments = new BigDecimal[7];
 
-        final double income = Config.getBasicIncome() + overtime + bounty + deduction;
+        final BigDecimal income = config.getBasicIncome().add(overtime).add(bounty).add(deduction);
 
-        final double retirement = Math.round((income * Config.getRetirementTax()) * 100.0) / 100.0;
-        final double annuity = Math.round((income * Config.getAnnuityTax()) * 100.0) / 100.0;
-        final double sickness = Math.round((income * Config.getSicknessTax()) * 100.0) / 100.0;
+        final BigDecimal retirement = income.multiply(config.getRetirementTax()).setScale(2, RoundingMode.HALF_DOWN); //Math.round((income * config.getRetirementTax()) * 100.0) / 100.0;
+        final BigDecimal annuity = income.multiply(config.getAnnuityTax()).setScale(2, RoundingMode.HALF_DOWN); //Math.round((income * config.getAnnuityTax()) * 100.0) / 100.0;
+        final BigDecimal sickness = income.multiply(config.getSicknessTax()).setScale(2, RoundingMode.HALF_DOWN); //Math.round((income * config.getSicknessTax()) * 100.0) / 100.0;
 
-        final double healthBase = Math.round((income - retirement - annuity - sickness) * 100.0) / 100.0;
-        final double health = Math.round((healthBase * Config.getHealthTax()) * 100.0) / 100.0;
-        final double healthRefund = Math.round((healthBase * Config.getHealthRefund()) * 100.0) / 100.0;
-        final double healthTax = health - healthRefund;
+        final BigDecimal healthBase = income.subtract(retirement).subtract(annuity).subtract(sickness).setScale(2, RoundingMode.HALF_DOWN); //Math.round((income - retirement - annuity - sickness) * 100.0) / 100.0;
+        final BigDecimal health = healthBase.multiply(config.getHealthTax()).setScale(2, RoundingMode.HALF_DOWN); //Math.round((healthBase * config.getHealthTax()) * 100.0) / 100.0;
+        final BigDecimal healthRefund = healthBase.multiply(config.getHealthRefund()).setScale(2, RoundingMode.HALF_DOWN); //Math.round((healthBase * config.getHealthRefund()) * 100.0) / 100.0;
+        final BigDecimal healthTax = health.subtract(healthRefund).setScale(2, RoundingMode.HALF_DOWN); //health - healthRefund;
 
-        final double taxBase = Math.round(healthBase - Config.getObtainingCost());
-        final double tax = taxBase * Config.getTax();
-        final double taxFinal = Math.round(tax - (healthRefund + Config.getTaxRelief()));
-        final double salary = healthBase - tax;
+        final BigDecimal taxBase = healthBase.subtract(config.getObtainingCost()).setScale(2, RoundingMode.HALF_DOWN); //Math.round(healthBase - config.getObtainingCost());
+        final BigDecimal tax = taxBase.multiply(config.getTax()).setScale(2, RoundingMode.HALF_DOWN); //taxBase * config.getTax();
+        final BigDecimal taxFinal = tax.subtract(healthRefund.add(config.getTaxRelief())).setScale(2, RoundingMode.HALF_DOWN); //Math.round(tax - (healthRefund + config.getTaxRelief()));
+        final BigDecimal salary = healthBase.subtract(tax).setScale(2, RoundingMode.HALF_DOWN); //healthBase - tax;
 
         payments[RETIREMENT_TAX] = retirement;
         payments[ANNUITY_TAX] = annuity;
