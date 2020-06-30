@@ -2,6 +2,7 @@ package org.brainfork.Payroll;
 
 import javax.swing.*;
 import javax.swing.table.TableColumn;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -66,6 +67,16 @@ public class Main {
         BasicIncome.addChangeListener(e -> {
             config.setBasicIncome(new BigDecimal(BasicIncome.getValue().toString()));
             updatePayout();
+        });
+        DayList.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                super.keyPressed(e);
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    DayList.editCellAt(DayList.getSelectedRow(), DayList.getSelectedColumn());
+                    e.consume();
+                }
+            }
         });
     }
 

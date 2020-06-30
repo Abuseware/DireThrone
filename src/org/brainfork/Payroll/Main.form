@@ -349,6 +349,7 @@
             <properties>
               <autoCreateRowSorter value="false"/>
               <autoResizeMode value="4"/>
+              <cellSelectionEnabled value="true"/>
               <font/>
               <rowHeight value="16"/>
             </properties>
